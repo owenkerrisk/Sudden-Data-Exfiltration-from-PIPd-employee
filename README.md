@@ -5,7 +5,7 @@
 # 🎯 **Use Case**   
 
 ## 📚 **Scenario:**  
-An employee named John Doe, working in a sensitive department, was recently placed on a performance improvement plan (PIP). After displaying concerning behavior, management suspects John may be planning to steal proprietary information and leave the company. The investigation involves analyzing activities on John’s corporate device (`windows-target-1`) using Microsoft Defender for Endpoint (MDE).  
+An employee named John Doe, working in a sensitive department, was recently placed on a performance improvement plan (PIP). After displaying concerning behavior, management suspects John may be planning to steal proprietary information and leave the company. The investigation involves analyzing activities on John’s corporate device (`okvm`) using Microsoft Defender for Endpoint (MDE).  
 
 ---
 
@@ -29,11 +29,11 @@ An employee named John Doe, working in a sensitive department, was recently plac
      ```
      ```kql
      DeviceFileEvents
-     | where DeviceName == "windows-target-1"
+     | where DeviceName == "okvm"
      | where FileName endswith ".zip"
      | order by Timestamp desc
      ```
-![Screenshot 2025-01-05 172716](https://github.com/user-attachments/assets/4fdf9cf4-4fed-4935-bfea-bb76d5b01144)
+![Image](https://github.com/user-attachments/assets/26a8ee86-fd1c-4049-b471-10b9b33da660)
 
      
 2. **⚙️ Process Analysis:**  
@@ -41,46 +41,51 @@ An employee named John Doe, working in a sensitive department, was recently plac
    - **Detection Query (KQL):**  
 
      ```kql
-     let VMName = "windows-target-1";
-     let specificTime = datetime(2025-01-05T21:48:40.6546522Z);
+     let VMName = "okvm";
+     let specificTime = datetime(2025-04-03T02:22:08.6263314Z);
      DeviceProcessEvents
      | where Timestamp between ((specificTime - 2m) .. (specificTime + 2m))
      | where DeviceName == VMName
      | order by Timestamp desc
      | project Timestamp, DeviceName, ActionType, FileName, ProcessCommandLine
      ```
-![Screenshot 2025-01-05 180046](https://github.com/user-attachments/assets/12d51ef5-8b84-4b41-9123-99adcbd3edbe)
+![Image](https://github.com/user-attachments/assets/5ebe96ef-c978-4c9a-a447-794f61ada5c4)
 
 
    3. **🌐 Network Exfiltration Check:**  
-   - **Observed Behavior:** No evidence of data exfiltration via network logs during the time frame.  
+   - **Observed Behavior:** The VM made several SSL (HTTPS) connections to remote IPs and there were multiple DNS resolution requests to external IPs, indicating possible domain lookups or communication with external servers. Some connections were successful, while others were only inspected. The activity pattern suggests the VM is engaging in external communications, but it is unclear if this is routine traffic or suspicious behavior. 
 
    - **Detection Query (KQL):**  
 
      ```kql
-     let VMName = "windows-target-1";
-     let specificTime = datetime(2025-01-05T21:48:40.6546522Z);
+     let VMName = "okvm";
+     let specificTime = datetime(2025-04-03T02:22:08.6263314Z);
      DeviceProcessEvents
      | where Timestamp between ((specificTime - 2m) .. (specificTime + 2m))
      | where DeviceName == VMName
      | order by Timestamp desc
-     ```  
+     ```
+
+     ![Image](https://github.com/user-attachments/assets/763df2a9-c3a8-45eb-addc-7c42c2137a0d)
 
 4. **📝 Response:**  
-   - Shared findings with the manager, highlighting automated archive creation and no immediate signs of exfiltration. The device was isolated, awaiting further instructions.
+   - Shared findings with the manager, highlighting automated archive creation and engaging with external communications. The device was isolated, awaiting further instructions. 
 
 ---
 
 ---
 
-## 🛡️ **MITRE ATT&CK Framework TTPs**  
+## 🛡️ MITRE ATT&CK Framework TTPs
 
-| **Tactic**           | **Technique**                                                                                     | **ID**            | **Description**                                                                                                                                                 |  
-|-----------------------|---------------------------------------------------------------------------------------------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|  
-| 🛠️ **Execution**      | PowerShell                                                                                       | T1059.001         | PowerShell scripts were used to silently install 7-Zip and execute file compression commands.                                                                   |  
-| 📦 **Collection**      | Archive Collected Data                                                                           | T1560.001         | Employee data was compressed into `.zip` files using 7-Zip, possibly for easier handling or exfiltration.                                                       |  
-| 📂 **Exfiltration**    | Exfiltration Over Alternative Protocol                                                           | T1048             | Although no network exfiltration was detected, the technique aligns with the potential misuse of alternate protocols for stealthy data transfer.                |  
-| 🔍 **Discovery**       | Process Discovery                                                                                | T1057             | Processes were reviewed to identify activities surrounding the installation and use of 7-Zip for archiving.                                                     |  
+| 🏹 Tactic        | 🔧 Technique                               | 🆔 ID         | 📖 Description  |
+|-----------------|--------------------------------------|-------------|----------------|
+| 🔍 Discovery    | System Information Discovery        | T1082       | The system gathered host-level details, including running processes, before performing further actions. |
+| 🛠️ Execution    | PowerShell                          | T1059.001   | PowerShell scripts were executed to install 7-Zip silently and perform file compression activities. |
+| 📦 Collection   | Archive Collected Data              | T1560.001   | Sensitive data was compressed into `.zip` files using 7-Zip, likely for easier handling or exfiltration. |
+| 📡 Command & Control | Encrypted Channel                 | T1573       | Multiple SSL connections to external IPs were detected, possibly indicating covert communications. |
+| 🚛 Exfiltration | Exfiltration Over C2 Channel        | T1041       | Network events suggest potential communication with external servers after file archiving. |
+| 🕵️‍♂️ Defense Evasion | Indicator Removal on Host         | T1070       | The process list was reviewed before execution, possibly to avoid detection while performing actions. |
+                        |  
 
 ---
 
